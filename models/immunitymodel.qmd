@@ -1,0 +1,103 @@
+---
+title: "Immunity model"
+bibliography: ../bibliography.bib
+---
+<!-- Define all your latex macros within an equation environment -->
+$$
+\newcommand{ICU}{\text{ICU}}
+$$
+Within both the [transmission model](transmission.qmd)  and the [clinical outcomes model](clinicaloutcomes.qmd) we include an immunological response to COVID-19. This immunological response is handled by directly modelling each individual's neutralising antibody titre. By using the model of @Khoury2021 and @Cromer2022 we can relate an individual's neutralising antibody titre to their protection against all outcomes of interest: infection, symptomatic disease, onward transmission given breakthrough infection, hospitalisation and death. The fact that each individual is assigned their own neutralising antibody titre results in inter-individual variation that leads to varying distributions of protection throughout the community, impacting the resulting dynamics. In the Australian context, by the time Delta and Omicron outbreaks occurred almost all immunity was vaccine-derived, therefore the model is initialised by considering neutralisating antibody titre from the vaccine roll out alone.
+
+An individual's neutralising antibody titre can be increased by a variety of exposures. The processes that we consider are: the first, second and booster dose of a vaccine, or infection occurring in an unvaccinated or vaccinated individual. Note that for simplicity we assume that infection prior to or following vaccination results in the same titre of neutralising antibody. Immune responses are stratified by the type of vaccine product, AstraZeneca (AZ) or mRNA vaccine (Pfizer or Moderna), that the individual has received based on supply and distribution data. 
+
+
+At the time of a boosting process, we sample the level of neutralising antibody titre that is acquired from, 
+$$
+    \log_{10}(a_i^0) \sim \mathcal{N}(\mu^x_j, \sigma^2),
+$$
+where $a_i^0$ is the neutralising antibody titre that individual $i$ is boosted to, $\mu^x_j$ is the mean neutralising antibody titre against strain $x$ of the population after boosting process $j$ and $\sigma^2$ is the variance of neutralising antibodies across the population. 
+
+The mean neutralising antibody titre, $\mu^x_j$, is set using logical rules based upon the infection and vaccination history of the individual. In our work it is assumed that an unvaccinated individual will have an average neutralising antibody titre of 0.0 on the $\log_{10}$-scale after exposure. This is our baseline measurement and is used to calibrate across multiple neutralising antibody studies. For an individual that has no prior exposure to COVID-19, their vaccination induces an antibody response such that, 
+$$
+    \mu^x_j = \mu_j^0 + \log_{10}(f_x),
+$${#eq-meanneuts}
+where $\mu_j^0$ is the mean level of neutralising antibody titre for vaccine $j$ against a base strain of COVID-19 (for us this is Delta) and $f_x$ is the fold change in neutralising antibody titre between the base strain and strain $x$. To account for the effect of exposure to COVID-19 prior or post vaccination, we use an altered form of @eq-meanneuts. For brevity, we have used @tbl-ExposedEquations to list the equations used to obtain $\mu^x_j$ with infection rather than include a description within text^[These formulae are updated as information continues to evolve.].
+
+
+| Processes | Average titre formula |
+|:---------:|:-----:|
+| Unvaccinated (U$\cap$E) |  $\mu^x_{\text{U}\cap\text{E}} = \mu^0_\text{U}$   |
+| AZ dose 1 (AZ1$\cap$E) | $\mu^x_{\text{AZ1}\cap\text{E}} = \mu_{\text{P2}}^0$  |
+| AZ dose 2 (AZ2$\cap$E) | $\mu^x_{\text{AZ2}\cap\text{E}} = \mu_{\text{B}}^0$    |
+| Pfizer dose 1 (P1$\cap$E) | $\mu^x_{\text{P1}\cap\text{E}} =  \mu_{\text{P2}}^0$ |
+| Pfizer dose 2 (P2$\cap$E) | $\mu^x_{\text{P2}\cap\text{E}} =  \mu_{\text{B}}^0$ |
+| mRNA booster (B$\cap$E) | $\mu^x_{\text{B}\cap\text{E}} = \mu_{\text{B}}^0$ |
+
+: Presented here are the relationships assumed within our immunological model for neutralising antibody titre for individuals that have been exposed to COVID-19. Here we have used the extended subscript with an E to represent prior or current exposure to the circulating strain of COVID-19. {#tbl-ExposedEquations}
+
+It is assumed that an individual's titre of neutralising antibodies will decay after boosting. This decay is assumed to be exponential, therefore,
+$$
+    \log_{10}(a_i) = \log_{10}(a_i^0) -
+         \frac{k_a}{\log(10.0)}t,
+$$ {#eq-NeutDecay}
+where $a_i$ is the time dependent neutralising antibody titre of individual $i$, $k_a$ is the decay rate of neutralising antibodies and $t$ is the time from the last boosting process (to limit the computational cost of constantly converting neutralising antibodies, all equations are expressed in terms of $\log_{10}(a_i)$ in our work). 
+
+To convert the neutralising antibody titre of an individual to their protection against any disease outcome, $\rho_\alpha$, we use
+$$
+    \rho_\alpha = \frac{1}{1 + \exp(-k (\log_{10}(a_i) - c_{\alpha}))}
+$${#eq-ProtectionCurve}
+where $k$ is governs the steepness of the logistic curve (logistic growth rate), and $c_{\alpha}$ defines the midpoint of the logistic function for disease outcome $\alpha$. 
+
+The immunological model interacts with the transmission model by altering the probability that an individual develops symptoms, $q_i$, their rate of onward transmission given breakthrough infection, $\tau_i$, and the contact's level of susceptibility, $\xi_j$.
+
+The susceptibility of contact $j$ is,
+$$
+    \xi_j = (1-\rho_\xi)\xi^0_i,
+$$
+where $\rho_\xi$ is the protection against infection and $\xi_i^0$ is the susceptibility of the $i$th individual if they were completely COVID naive. The probability that individual $i$ develops symptoms is governed by,
+$$
+    q_i = \frac{1 - \rho_q}{1 - \rho_\xi}q_i^0,
+$${#eq-symptomaticinfection}
+where $\rho_q$ is the protection against symptomatic infection and $q_i^0$ is the probability of symptomatic infection for individual $i$ if they were completely COVID naive (zero neutralising antibody titre). 
+
+To model the onward transmission rate more care must be taken. It is assumed in our model that asymptomatic individuals are 50\% less likely to infect their contacts when compared to their symptomatic counterpart. However, this reduction in transmission due to asymptomatic infections is not accounted for in the clinical trial data used to calibrate the protection against onward transmission. To avoid double counting the effect of the neutralising antibodies we alter the functional form for the rate of onward transmission to, 
+$$
+    \tau_i = \frac{s(1 - \rho_\tau)(1 + q_i^0)}{1+ q_i} \beta_i,
+$${#eq-onwardtransmission}
+where $s$ is either 0.5 or 1 depending upon whether the individual is asymptomatic or symptomatic respectively, $\rho_\tau$ is the protection against onward transmission and $\beta_i$ is the baseline (zero neutralising antibody titre) infectiousness of the infector. Note that $\beta_i$ depends upon the age of the individual and the expected transmission potential of the population.
+
+To reduce the computational cost of updating the immunological component of the transmission model for each individual at every timestep, we only solve the immunological component of the IBM when we require the protection against an outcome of interest. This is done by storing the time of last boost of neutralising antibodies and the titre that the individual was boosted to. When required, we update the individual's neutralising antibody titre to the current timestep using this stored information. 
+
+The clinical outcomes model uses the transmission model as an intermediary between the immunological response of each infected individual and their corresponding clinical outcome. This is done by outputting each infected individual's neutralising antibody titre at the point of exposure, a symptom indicator and their time of symptom onset for use within the clinical pathways model. 
+
+The immunological model determines the probability of hospitalisation, ICU requirement and death based on observed relationships between neutralising antibody titres and clinical endpoint outcomes from efficacy studies. For a symptomatic individual $i$, the probability of hospitalisation is given by
+$$
+    p_{H | I }^i = \frac{OR\left(p^0_{H|E},\rho_h(a_i)\right)}{q_i},
+$$
+where $p^0_{H|E}$ is the baseline probability of hospitalisation given infection, $\rho_h(a_i)$ is the protection against hospitalisation, $a_i$ is individual $i$'s neutralising antibody titre at the point of exposure, and
+$$
+OR(p,r)= \frac{\frac{rp}{p-1}}{1+\frac{rp}{1-p}},
+$$
+is the function that uses odds ratio $r$ and baseline probability $p$ to compute an adjusted probability.
+
+If individual $i$ is hospitalised, the probabilities governing which hospital pathway is chosen are altered such that, 
+$$
+p_{\ICU | H}^i = \frac{OR\left(p^0_{\ICU| E} ,\rho_h(a_i)\right)}{p_{H| I }^iq_i},
+$$
+and,
+$$
+    p_{H_D|ICU^c}^i = \frac{OR\left(p^0_{H_D|E},\rho_\text{D}(a_i)\right)}{(1-p_{\ICU | H}^i)p_{H | I}^iq_i},
+$$
+where $p^0_{\ICU | E}$ is the baseline probability of requiring the ICU given infection, $p_{H_D|E}^0$ is the probability of death on ward (without visiting ICU) given infection and $\rho_\text{D}(a_i)$ is the protection against death given infection.
+
+If individual $i$ is in the ICU, then their probabilities of death in the ICU, $p_{\ICU_D|\ICU}^i$, and death on the ward given they left ICU without dying, $p_{W_D|\ICU_D^c}^i$, are altered such that, 
+$$
+    p_{\ICU_D|\ICU}^i = \frac{OR\left(p^0_{\ICU_D|E},\rho_\text{D}(a_i)\right)}{p_{\ICU | H}^ip_{H| I }^iq_i},
+$$
+and,
+$$
+    p_{W_D|\ICU_D^c}^i = \frac{OR\left(p_{W_D|E}^0,\rho_D(a_i)\right)}{(1-p_{\ICU_D|\ICU}^i)p_{\ICU | H}^ip_{H | I }^iq_i},
+$$
+where $p^0_{\ICU_D|E}$ is the baseline probability of dying in the ICU and $p_{W_D|E}^0$ is the baseline probability of dying in the ward after returning from the ICU. Note that we assume no difference between the protection from hospitalisation given infection and the protection from ICU given infection here. 
+ 
+To determine all parameters in @eq-NeutDecay and @eq-ProtectionCurve, we use a re-implementation of @Khoury2021 and @Cromer2022 in a Bayesian framework [@GoldingNeuts2022]. This allows us to calibrate the level of protection, which is analogous to vaccine efficacy for individuals with no exposure to COVID-19, to observed clinical data. The model fit in @GoldingNeuts2022 takes in a range of data relating neutralising antibody levels to efficacy, and estimates of vaccine efficacies from a range of studies to estimate efficacy over time against the Delta variant. To estimate the efficacies against the Omicron variant, Golding and colleagues estimate an 'escape' parameter for the Omicron variant relative to the Delta variant. This was done by using the relative rates of infection in Danish households between Omicron and Delta to estimate the the relative $R_0$ between the variants, and early evidence of vaccine efficacies against Omicron from the UK to understand the level of vaccine escape. This was then combined with the information fit on the Delta variant to model waning over time for both the Delta and Omicron variants.

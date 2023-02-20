@@ -1,0 +1,27 @@
+project:
+  type: website
+  preview:
+    port: 4200
+    browser: true
+
+website:
+  title: "COVID IBM: Waning Immunity"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: models/transmission.qmd
+        text: Transmission Model
+      - href: models/clinicaloutcomes.qmd
+        text: Clinical Outcomes Model
+      - href: models/immunitymodel.qmd
+        text: Immunity Model
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+
+
+
