@@ -7,6 +7,7 @@ project:
 website:
   title: "COVID IBM: Waning Immunity"
   navbar:
+    pinned: true
     left:
       - href: index.qmd
         text: Home
@@ -16,12 +17,12 @@ website:
         text: Clinical Outcomes Model
       - href: models/immunitymodel.qmd
         text: Immunity Model
+    right:
+      - icon: github
+        href: https://github.com/spectrum-spark
 
 format:
   html:
     theme: cosmo
     css: styles.css
     toc: true
-
-
-
